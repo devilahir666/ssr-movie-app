@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoviesHub VIP Link Protector</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: #fff;
+      padding: 20px;
+    }
+    h2 { text-align: center; margin-bottom: 10px; }
+    h3 { text-align: center; color:#38bdf8; margin-bottom: 20px; }
+
+    .season-box {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 15px;
+      margin: 15px 0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+    .season-title {
+      font-size: 20px;
+      color: #38bdf8;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 5px;
+    }
+    .quality {
+      font-size: 16px;
+      color: #facc15;
+      margin: 10px 0 6px;
+    }
+    .episode {
+      font-size: 14px;
+      color: #cbd5e1;
+      margin: 6px 0 4px;
+    }
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .btn-custom {
+      flex: 1;
+      min-width: 120px;
+      text-align: center;
+      padding: 8px 12px;
+      background: #2563eb;
+      border-radius: 8px;
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+      transition: 0.3s;
+    }
+    .btn-custom:hover { background: #1d4ed8; }
+    #captchaBox, #downloadBox { display: none; margin-top: 20px; text-align:center; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h2 id="movieTitle">🔒 Movieshub Secure Download</h2>
+  <h3>All Download Link Is provided By Telegram Bot First Ensure Install Telegram</h3>
+  <p style="text-align:center;">Wait for <span id="timer">10</span> seconds to unlock download links...</p>
+
+  <!-- Captcha -->
+  <div id="captchaBox">
+    <p>Solve Captcha to Continue:</p>
+    <span id="captchaQ"></span>
+    <input type="number" id="captchaInput" placeholder="Answer" />
+    <button id="verifyBtn">Verify</button>
+    <p id="errorMsg" class="hidden" style="color:red;">❌ Wrong Answer!</p>
+  </div>
+
+  <!-- Download Box -->
+  <div id="downloadBox"></div>
+
+<script>
+  // Timer
+  let timer = 10;
+  let timerEl = document.getElementById("timer");
+  let captchaBox = document.getElementById("captchaBox");
+  let downloadBox = document.getElementById("downloadBox");
+  let movieTitleEl = document.getElementById("movieTitle");
+
+  let countdown = setInterval(() => {
+    timer--;
+    timerEl.innerText = timer;
+    if (timer <= 0) {
+      clearInterval(countdown);
+      captchaBox.style.display = "block";
+    }
+  }, 1000);
+
+  // Captcha
+  let num1 = Math.floor(Math.random() * 10) + 1;
+  let num2 = Math.floor(Math.random() * 10) + 1;
+  let correctAnswer = num1 + num2;
+  document.getElementById("captchaQ").innerText = `${num1} + ${num2} = ?`;
+
+  document.getElementById("verifyBtn").addEventListener("click", async function() {
+    let userAns = parseInt(document.getElementById("captchaInput").value);
+    if (userAns === correctAnswer) {
+      captchaBox.style.display = "none";
+      downloadBox.style.display = "block";
+      await loadMovie();
+    } else {
+      document.getElementById("errorMsg").classList.remove("hidden");
+    }
+  });
+
+  // Render Function (with Episodes)
+  function renderLinks(container, obj, level = 0) {
+    if (typeof obj === "object" && !Array.isArray(obj)) {
+      Object.entries(obj).forEach(([key, value]) => {
+        if (level === 0) {
+          // Season
+          let seasonBox = document.createElement("div");
+          seasonBox.className = "season-box";
+
+          let title = document.createElement("div");
+          title.className = "season-title";
+          title.innerText = key;
+          seasonBox.appendChild(title);
+
+          renderLinks(seasonBox, value, level + 1);
+          container.appendChild(seasonBox);
+
+        } else if (level === 1) {
+          // Quality (480p/720p)
+          let q = document.createElement("div");
+          q.className = "quality";
+          q.innerText = key;
+
+          container.appendChild(q);
+          renderLinks(container, value, level + 1);
+
+        } else if (level === 2) {
+          // Episode level
+          let epTitle = document.createElement("div");
+          epTitle.className = "episode";
+          epTitle.innerText = key;
+
+          let group = document.createElement("div");
+          group.className = "btn-group";
+
+          renderLinks(group, value, level + 1);
+
+          container.appendChild(epTitle);
+          container.appendChild(group);
+        } else {
+          renderLinks(container, value, level + 1);
+        }
+      });
+    } else if (Array.isArray(obj)) {
+      obj.forEach((url) => {
+        let btn = document.createElement("a");
+        btn.className = "btn-custom";
+        btn.href = url;
+        btn.target = "_blank";
+        btn.innerText = "Download";
+        container.appendChild(btn);
+      });
+    }
+  }
+
+  // Load Movie
+  async function loadMovie() {
+    try {
+      let params = new URLSearchParams(window.location.search);
+      let movieId = params.get("id");
+
+      if (!movieId) {
+        downloadBox.innerHTML = "<p style='color:red;'>⚠️ No movie ID provided</p>";
+        return;
+      }
+
+      let res = await fetch("https://movie-backend-uqfx.onrender.com/movies");
+      let movies = await res.json();
+      let movie = movies.find(m => m.id === movieId);
+
+      if (!movie) {
+        downloadBox.innerHTML = "<p style='color:red;'>⚠️ Movie not found</p>";
+        return;
+      }
+
+      movieTitleEl.innerText = "🎬 " + movie.title;
+
+      let links = movie.Dow;
+      if (typeof links === "string") links = JSON.parse(links);
+
+      renderLinks(downloadBox, links);
+    } catch (err) {
+      downloadBox.innerHTML = "<p style='color:red;'>⚠️ Error loading movie</p>";
+      console.error(err);
+    }
+  }
+</script>
+</body>
+</html>
